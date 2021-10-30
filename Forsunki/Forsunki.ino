@@ -17,7 +17,7 @@ OneButton buttonDown(DOWN_BUTTON, true, true);
 LiquidCrystal_I2C lcd(0x3F,16,2);
 
 bool isOn = true;
-int rpm = 700;
+int rpm = 100;
 int rpmDelta = 50;
 int rpmDeltaMin = 10;
 
