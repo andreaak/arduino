@@ -74,3 +74,8 @@ void Injector:: setOff()
 {
   isOn = false;
 }
+
+bool Injector:: getIsOn()
+{
+  return isOn;
+}

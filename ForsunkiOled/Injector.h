@@ -16,6 +16,8 @@ public:
   
   void setOff();
 
+  bool getIsOn();
+
   void process(unsigned long time);
 
 

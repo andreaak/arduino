@@ -3,43 +3,52 @@
 #include "Adafruit_SSD1306.h"
 #include "Injector.h"
 
-#define INJECTOR1 5
-#define INJECTOR2 6
-#define INJECTOR3 7
-#define INJECTOR4 8
 
-#define MODE_BUTTON 4
-#define UP_BUTTON 3
-#define DOWN_BUTTON 2
+#define MODE_BUTTON 10
+#define UP_BUTTON 11
+#define DOWN_BUTTON 12
+
+#define INJECTOR1 14
+#define INJECTOR2 15
+#define INJECTOR3 16
+#define INJECTOR4 17
+
+#define ALL_MODE 0
+#define I1_MODE 1
+#define I2_MODE 2
+#define I3_MODE 3
+#define I4_MODE 4
+
+#define NO_SELECTION_MODE 0
+#define RPM_MODE 1
+#define TIME_MODE 2
+#define INJ_MODE 3
+
+#define MIN_INJ_TIME 3
 
 OneButton buttonMode(MODE_BUTTON, true, true);
 OneButton buttonUp(UP_BUTTON, true, true);
 OneButton buttonDown(DOWN_BUTTON, true, true);
-Adafruit_SSD1306 lcd(128, 64, &Wire, 4); // указываем размер экрана в пикселях
-
-bool isOn = true;
-int rpm = 100;
-int rpmDelta = 50;
-int rpmDeltaMin = 10;
-
-int injectionTime = 18;
-int injectionTimeDelta = 1;
-int currentMode = 0;
-int currentInjMode = 0;
-
-int RPM_MODE = 1;
-int TIME_MODE = 2;
-int INJ_MODE = 3;
-
-int OFF_MODE = 0;
-int ON_MODE = 1;
+Adafruit_SSD1306 lcd(128, 64, &Wire, -1); // указываем размер экрана в пикселях
 
 unsigned long startTime = millis();
+int rpm = 150;
+int injectionTime = 18;
 
 Injector injector1(INJECTOR1, 0, rpm, injectionTime, startTime); 
 Injector injector2(INJECTOR2, 1, rpm, injectionTime, startTime); 
 Injector injector3(INJECTOR3, 2, rpm, injectionTime, startTime); 
 Injector injector4(INJECTOR4, 3, rpm, injectionTime, startTime); 
+
+int rpmDelta = 50;
+int rpmDeltaMin = 10;
+
+int injectionTimeDelta = 1;
+
+int currentSelectMode = NO_SELECTION_MODE;
+int currentInjMode = ALL_MODE;
+
+bool isOn = false;
 
 bool isDataDisplayed = false;
 
@@ -62,7 +71,7 @@ void setup() {
 void loop() {
 
   buttonMode.tick();
-  if(currentMode != 0)
+  if(currentSelectMode != 0)
   {
     buttonUp.tick();
     buttonDown.tick(); 
@@ -80,17 +89,17 @@ void loop() {
 
 void handleModeClick()
 {
-  currentMode = ++currentMode % 4;
+  currentSelectMode = ++currentSelectMode % 4;
   isDataDisplayed = false;
 }
 
 void handleUpClick()
 {
-  if(currentMode == 0)
+  if(currentSelectMode == NO_SELECTION_MODE)
   {
     return;
   }
-  if(currentMode == RPM_MODE)
+  if(currentSelectMode == RPM_MODE)
   {
     if((rpm + rpmDeltaMin) <= rpmDelta)
     {
@@ -103,30 +112,25 @@ void handleUpClick()
     
     setRpm();
   } 
-  else if(currentMode == TIME_MODE)
+  else if(currentSelectMode == TIME_MODE)
   {
     injectionTime += injectionTimeDelta;
     setInjectionTime();
   }
-  else if(currentMode == TIME_MODE)
+  else if(currentSelectMode == INJ_MODE)
   {
-    injectionTime += injectionTimeDelta;
-    setInjectionTime();
-  }
-  else if(currentMode == INJ_MODE)
-  {
-    currentInjMode = ++currentInjMode % 6;
+    currentInjMode = ++currentInjMode % 5;
   }  
   isDataDisplayed = false;
 }
 
 void handleDownClick()
 {
-  if(currentMode == 0)
+  if(currentSelectMode == NO_SELECTION_MODE)
   {
     return;
   }
-  if(currentMode == RPM_MODE)
+  if(currentSelectMode == RPM_MODE)
   {
     if(rpm > rpmDelta)
     {
@@ -139,15 +143,15 @@ void handleDownClick()
       setRpm();
     }
   } 
-  else if(currentMode == TIME_MODE)
+  else if(currentSelectMode == TIME_MODE)
   {
-    if(injectionTime > 4)
+    if(injectionTime > MIN_INJ_TIME)
     {
       injectionTime -= injectionTimeDelta;
       setInjectionTime();
     }
   }
-  else if(currentMode == INJ_MODE)
+  else if(currentSelectMode == INJ_MODE)
   {
     setInjectionMode();
   }
@@ -172,48 +176,94 @@ void setInjectionTime()
 
 void setInjectionMode()
 { 
-  if(currentInjMode == 0)
+  switch(currentInjMode)
   {
-    injector1.setOff();
-    injector2.setOff();
-    injector3.setOff();
-    injector4.setOff();
+    case ALL_MODE:
+      if(isOn)
+      {
+        turnOff();
+      }
+      else
+      {
+        turnOn();
+      }
+      break;
+    case I1_MODE:
+      switchInjector1();
+      break;  
+    case I2_MODE:
+      switchInjector2();
+      break;  
+    case I3_MODE:
+      switchInjector3();
+      break;
+    case I4_MODE:
+      switchInjector4();
+      break;
   }
-  else if(currentInjMode == 1)
-  {
+}
+
+void turnOn()
+{
+    isOn = true;
     injector1.setOn();
     injector2.setOn();
     injector3.setOn();
     injector4.setOn();
-  }
-  else if(currentInjMode == 2)
-  {
-    injector1.setOn();
-    injector2.setOff();
-    injector3.setOff();
-    injector4.setOff();    
-  }
-  else if(currentInjMode == 3)
-  {
-    injector1.setOff();
-    injector2.setOn();
-    injector3.setOff();
-    injector4.setOff();    
-  }
-  else if(currentInjMode == 4)
-  {
-    injector1.setOff();
-    injector2.setOff();
-    injector3.setOn();
-    injector4.setOff();    
-  }
-  else if(currentInjMode == 5)
-  {
+}
+
+void turnOff()
+{
+    isOn = false;
     injector1.setOff();
     injector2.setOff();
     injector3.setOff();
-    injector4.setOn();   
-  }        
+    injector4.setOff();
+}
+
+void switchInjector1()
+{
+    switchInjector(&injector1);
+//    injector2.setOff();
+//    injector3.setOff();
+//    injector4.setOff(); 
+}
+
+void switchInjector2()
+{
+//    injector1.setOff();
+    switchInjector(&injector2);
+//    injector3.setOff();
+//    injector4.setOff(); 
+}
+
+void switchInjector3()
+{
+//    injector1.setOff();
+//    injector2.setOff();
+    switchInjector(&injector3);
+//    injector4.setOff(); 
+}
+
+void switchInjector4()
+{
+//    injector1.setOff();
+//    injector2.setOff();
+//    injector3.setOff();
+    switchInjector(&injector4); 
+}
+
+void switchInjector(Injector* injector)
+{
+    Serial.println(injector->getIsOn());
+    if(injector->getIsOn())
+    {
+      injector->setOff();
+    }
+    else
+    {
+      injector->setOn();
+    }
 }
 
 void displayData()
@@ -225,19 +275,18 @@ void displayData()
 
   lcd.clearDisplay();  
 
-  if(currentMode == RPM_MODE)
+  switch(currentSelectMode)
   {
-    blinkRpm();
-  } 
-  else if(currentMode == TIME_MODE)
-  {
-    blinkInjectionTime();
+    case RPM_MODE:
+      blinkRpm();
+      break;
+    case TIME_MODE:
+      blinkInjectionTime();
+      break;
+    case INJ_MODE:
+      blinkInjectorMode();
+      break;  
   }
-  else if(currentMode == INJ_MODE)
-  {
-    blinkInjectorMode();
-  }
-  
   lcd.setCursor(10, 0);
   lcd.print("RPM:  ");
   lcd.println(rpm);
@@ -279,33 +328,34 @@ void setInjectionModeDescription()
   lcd.setCursor(10, 32);
   lcd.print("INJ:  ");
   
-  if(currentInjMode == OFF_MODE)
+  switch(currentInjMode)
   {
-    lcd.println("Off");
-  }
-  else if(currentInjMode == ON_MODE)
-  {
-    lcd.println("On");
-  }
-  else if(currentInjMode == 2)
-  {
-    lcd.println("1");
-  }
-  else if(currentInjMode == 3)
-  {
-    lcd.println("2");
-  }
-  else if(currentInjMode == 4)
-  {
-    lcd.println("3");
-  }
-  else if(currentInjMode == 5)
-  {
-    lcd.println("4");
-  }
-  else
-  {
-    lcd.println("---");
+    case ALL_MODE:
+      if(isOn)
+      {
+        lcd.println("All On");
+      }
+      else
+      {
+        lcd.println("All Off");
+      }
+      break;
+    case I1_MODE:
+      lcd.print("1");
+      lcd.println(injector1.getIsOn() ? " On": " Off");
+      break;  
+    case I2_MODE:
+      lcd.print("2");
+      lcd.println(injector2.getIsOn() ? " On": " Off");
+      break;  
+    case I3_MODE:
+      lcd.print("3");
+      lcd.println(injector3.getIsOn() ? " On": " Off");
+      break;
+    case I4_MODE:
+      lcd.print("4");
+      lcd.println(injector4.getIsOn() ? " On": " Off");
+      break;
   }
   lcd.display();
 }
